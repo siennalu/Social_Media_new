@@ -35,7 +35,7 @@ module.exports = class Article {
       article.numberOfLikes = article.likes.length;
       article.hashTags = fields.hashTags;
 
-      //上傳圖片及照片
+      //上傳圖片及照片(問題:重複的相同留言會被蓋掉)
       if (files.image != null && files.video != null) {
         cloudinary.uploader.upload(files.image.path, function (resultPhotoUrl) {
           photoObj.type = fields.photoType; //png
@@ -382,12 +382,12 @@ module.exports = class Article {
           photoObj.type = fields.photoType;
           photoObj.link = resultPhotoUrl.secure_url;
           forComment.mediaLink.push(photoObj)
-
+          //console.log("留言圖片" + forComment.mediaLink)
           cloudinary.uploader.upload_large(files.video.path, function (resultVideoUrl) {
             videoObj.type = fields.videoType;
             videoObj.link = resultVideoUrl.secure_url;
             forComment.mediaLink.push(videoObj);
-
+            //console.log("留言影片" + forComment.mediaLink)
             profileSchemaModel.findOne({userID: fields.commenterID})
               .then(data => {
                 forComment.commenter_avatarLink = data.avatarLink
@@ -397,16 +397,19 @@ module.exports = class Article {
             articleSchemaModel.findOne({_id: fields.articleID})
               .then(doc => {
                 doc.comment.push(forComment)
-                //console.log(doc)
-                let result = {
-                  status: "圖片和影片留言成功",
-                  article: doc
-                }
-                res.json(result)
-              })
-              .catch(error => res.json(error));
-          }, {resource_type: "video"});
-        }, {folder: 'Social_Media/mediaLink'});
+                doc.save()
+                  .then(value => {
+                    let result = {
+                      status: "圖片和影片留言成功",
+                      article: value
+                    }
+                    res.json(result)
+                  })
+                  .catch(error => res.json(error));
+              }, {resource_type: "video"});
+          }, {folder: 'Social_Media/mediaLink'});
+        })
+
 
         //留言圖片
       } else if (files.image != undefined && files.video == null) {
@@ -503,19 +506,50 @@ module.exports = class Article {
         for (let i = 0; i < doc.comment.length; i++) {
           if (doc.comment[i].id === req.body.commentID && doc.comment[i].likes.indexOf(req.body.likesPersonID) == -1)
             doc.comment[i].likes.push(req.body.likesPersonID);
-          doc.comment.set(i, doc.comment[i])
+            doc.comment[i].numberOfLikes = doc.comment[i].likes.length;
+
         }
         doc.save()
           .then(value => {
             let result = {
-              status: "留言成功",
+              status: "按讚成功",
               content: value
             }
             res.json(result);
           })
           .catch(error => {
             let result = {
-              status: "留言失敗",
+              status: "按讚失敗",
+              err: "伺服器錯誤，請稍後再試"
+            }
+            res.json(error)
+          })
+      })
+  }
+
+  dislikesComment(req, res, next) {
+    let temp = 0
+    articleSchemaModel.findOne({_id: req.body.articleID})
+      .then(doc => {
+        for (let i = 0; i < doc.comment.length; i++) {
+          if (doc.comment[i].id === req.body.commentID && doc.comment[i].likes.indexOf(req.body.dislikesPersonID) != -1)
+          temp = doc.comment[i].likes.indexOf(req.body.dislikesPersonID);
+          doc.comment[i].likes.splice(temp, 1);
+          doc.comment[i].numberOfLikes = doc.comment[i].likes.length;
+            //doc.comment[i].likes.push(req.body.likesPersonID);
+          doc.comment.set(i, doc.comment[i])
+        }
+        doc.save()
+          .then(value => {
+            let result = {
+              status: "取消讚成功",
+              content: value
+            }
+            res.json(result);
+          })
+          .catch(error => {
+            let result = {
+              status: "取消讚失敗",
               err: "伺服器錯誤，請稍後再試"
             }
             res.json(error)
@@ -524,7 +558,190 @@ module.exports = class Article {
   }
 
 
+  updateComment(req, res ,next) {
+    let updateCommentArrayForListOfComment = [];
+    let updateCommentObjForListOfComment = {};
+    let updateForMedialink = [];
+    let photoObj = {};
+    let videoObj = {};
+    let seconds = Math.round(Date.now() / 1000);
 
+
+    const form = new formidable.IncomingForm();
+    form.parse(req, function (err, fields, files) {
+      updateCommentObjForListOfComment.time = seconds;
+      updateCommentObjForListOfComment.content = fields.content;
+      updateCommentArrayForListOfComment.push(updateCommentObjForListOfComment);
+
+      //修改留言的圖片和影片
+      if (files.image != null && files.video != null) {
+        cloudinary.uploader.upload(files.image.path, function (resultPhotoUrl) {
+          photoObj.type = fields.photoType;
+          photoObj.link = resultPhotoUrl.secure_url;
+          //console.log(photoObj)
+          //updateForComment.mediaLink.push(photoObj)
+
+          cloudinary.uploader.upload_large(files.video.path, function (resultVideoUrl) {
+            videoObj.type = fields.videoType;
+            videoObj.link = resultVideoUrl.secure_url;
+            //updateForComment.mediaLink.push(videoObj);
+
+
+            articleSchemaModel.findOne({_id: fields.articleID})
+              .then(doc => {
+                for (let i = 0; i < doc.comment.length; i++) {
+                  if (doc.comment[i].id == fields.commentID) {
+                   // console.log("123"+doc.comment[i].mediaLink)
+                    updateForMedialink.push(photoObj)
+                    //console.log(updateForMedialink)
+                    updateForMedialink.push(videoObj)
+                    doc.comment[i].mediaLink = updateForMedialink
+
+                  }
+                  if ( doc.comment[i].listOfComment != null) doc.comment[i].listOfComment = updateCommentArrayForListOfComment
+
+                }
+                //console.log(doc)
+                //doc.comment.push(updateForComment)
+                //console.log(doc)
+
+                doc.save()
+                  .then(value => {
+                    let result = {
+                      status: "圖片和影片留言成功",
+                      article: value
+                    }
+                    res.json(result)
+                  })
+                  .catch(error => res.json(error));
+              })
+          }, {resource_type: "video"});
+        }, {folder: 'Social_Media/mediaLink'});
+
+        //修改留言圖片
+      } else if (files.image != undefined && files.video == null) {
+        cloudinary.uploader.upload(files.image.path, function (resultPhotoUrl) {
+          photoObj.type = fields.photoType;
+          photoObj.link = resultPhotoUrl.secure_url;
+
+          articleSchemaModel.findOne({_id: fields.articleID})
+            .then(doc => {
+              for (let i = 0; i < doc.comment.length; i++) {
+                if (doc.comment[i].id == fields.commentID) {
+                  doc.comment[i].mediaLink = photoObj
+                  doc.comment[i].listOfComment = updateCommentArrayForListOfComment
+                }
+                if ( doc.comment[i].listOfComment != null) doc.comment[i].listOfComment = updateCommentArrayForListOfComment
+              }
+
+              doc.save()
+                .then(value => {
+                  let result = {
+                    status: "圖片留言成功",
+                    article: value
+                  }
+                  res.json(result)
+                })
+                .catch(error => res.json(error));
+            })
+            .catch(error => res.json(error));
+        }, {folder: 'Social_Media/mediaLink'});
+
+        //修改影片
+      } else if (files.image == null && files.video != null) {
+        cloudinary.uploader.upload_large(files.video.path, function (resultVideoUrl) {
+          videoObj.type = fields.videoType;
+          videoObj.link = resultVideoUrl.secure_url;
+          //updateForComment.mediaLink.push(videoObj)
+
+          articleSchemaModel.findOne({_id: fields.articleID})
+            .then(doc => {
+              for (let i = 0; i < doc.comment.length; i++) {
+                if (doc.comment[i].id == fields.commentID) {
+                  doc.comment[i].mediaLink = videoObj
+                  doc.comment[i].listOfComment = updateCommentArrayForListOfComment
+                }
+                if ( doc.comment[i].listOfComment != null) doc.comment[i].listOfComment = updateCommentArrayForListOfComment
+              }
+
+              doc.save()
+                .then(value => {
+                  let result = {
+                    status: "影片留言成功",
+                    article: value
+                  }
+                  res.json(result)
+                })
+                .catch(error => res.json(error));
+            })
+            .catch(error => res.json(error));
+        }, {folder: 'Social_Media/mediaLink'});
+
+        //修改文字
+      } else if (files.image == null && files.video == null) {
+
+        articleSchemaModel.findOne({_id: fields.articleID})
+          .then(doc => {
+            for (let i = 0; i < doc.comment.length; i++) {
+              if (doc.comment[i].id == fields.commentID) {
+                doc.comment[i].listOfComment = updateCommentArrayForListOfComment
+              }
+            }
+            doc.save()
+              .then(value => {
+                let result = {
+                  status: "留言修改成功",
+                  content: value
+                }
+                res.json(result);
+              })
+              .catch(error => {
+                let result = {
+                  status: "留言修改失敗",
+                  err: "伺服器錯誤，請稍後再試"
+                }
+                res.json(error)
+              })
+          })
+      }
+
+    })
+
+  }
+
+  deleteComment(req, res, next){
+   articleSchemaModel.findOne({_id: req.body.articleID})
+      .then(doc => {
+        //console.log(doc)
+
+        for (let i = 0 ; i < doc.comment.length;i++) {
+          if(doc.comment[i].id === req.body.commentID)
+           doc.comment[i].delete = true;
+            //console.log(doc)
+          //delete doc.comment[i].id[req.body.commentID]
+          //console.log(doc)
+          let temp = doc.comment[i].id.indexOf(req.body.commentID)
+          //console.log(temp)
+          doc.comment.splice(temp,1);
+        }
+
+
+        doc.save().then(value => {
+          let result = {
+            status: "刪除成功",
+            content: value
+          }
+          res.json(result);
+        })
+          .catch(error => {
+            let result = {
+              status: "刪除失敗",
+              err: "伺服器錯誤，請稍後再試"
+            }
+            res.json(error)
+          })
+  })
+  }
 
 }
 
