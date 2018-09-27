@@ -32,33 +32,33 @@ router.put('/likes_article', article.likesArticle); //likes
 
 router.put('/dislikes_article', article.dislikesArticle); //likes
 
-//router.post('/upload_avatar', profile.uploadAvatar);//upload
+router.post('/upload_avatar', profile.uploadAvatar);//upload
 
 router.post('/add_comment', article.commentArticle); //leave comment
 
 router.put('/likes_comment', article.likesComment); //likes comment
 
-//router.put('/dislikes_comment', article.dislikesComment); //dislikes comment
+router.put('/dislikes_comment', article.dislikesComment); //dislikes comment
 
-// router.put('/delete_comment', comment.deleteComment); //delete comment
-//
-// router.put('/update_comment', comment.updateComment); //update comment
+router.put('/delete_comment', article.deleteComment); //delete comment
 
-// router.post('/upload_backgroundPhoto', profile.uploadBackgroundPhoto); //upload
-//
-// router.post('/search_profileByUserID', profile.searchProfileByUserID); //get the profile by userID
-//
-// router.post('/search_articleByUserID', profile.searchArticleByUserID); //get the article by userID
-//
-// router.put('/profile_setting', profile.profileSetting); //profile
-//
-// router.put('/friends_following', profile.friendsFollowing); //追蹤
-//
-// router.put('/friends_unfollowing', profile.friendsUnfollowing); //取消追蹤
-//
-// router.put('/friends_add', profile.friendsAdd); //新增好友
-//
-// router.put('/friends_unadded', profile.friendsUnadded); //新增好友
+router.put('/update_comment', article.updateComment); //update comment
+
+router.post('/upload_backgroundPhoto', profile.uploadBackgroundPhoto); //upload
+
+router.post('/search_profileByUserID', profile.searchProfileByUserID); //get the profile by userID
+
+router.post('/search_articleByUserID', profile.searchArticleByUserID); //get the article by userID
+
+router.put('/profile_setting', profile.profileSetting); //profile
+
+//router.put('/friends_following', profile.friendsFollowing); //追蹤
+
+router.put('/friends_unfollowing', profile.friendsUnfollowing); //取消追蹤
+
+router.put('/friends_add', profile.friendsAdd); //新增好友
+
+router.put('/friends_unadded', profile.friendsUnadded); //取消好友
 
 
 module.exports = router;
